@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: econsume-deployment
+  labels:
+    app: econsume
+    tier: microservice
+spec:
+  # Scale to 3 replicas for high availability and load distribution
+  replicas: 3
+  selector:
+    matchLabels:
+      app: econsume
+  template:
+    metadata:
+      labels:
+        app: econsume
+    spec:
+      # Optional: Use a dedicated Service Account configured for Azure Workload Identity 
+      # to access Azure Key Vault secrets.
+      # serviceAccountName: aks-workload-identity-sa 
+      containers:
+        - name: econsume
+          image: azregistry.azurecr.io/econsume-service:latest # Placeholder for your ACR image
+          ports:
+            - containerPort: 8080
+          
+          # --- SECURE CONFIGURATION VIA ENVIRONMENT VARIABLES ---
+          # The Spring Boot application reads these environment variables, which will 
+          # either be set directly by the K8s manifest (for Kafka broker, topic names) 
+          # OR will be the names of the Azure Key Vault secrets 
+          # that the Spring Cloud Azure library fetches at runtime.
+          env:
+            # Database Connection (Target PostgreSQL) - Keys are securely fetched from Key Vault
+            - name: SPRING_DATASOURCE_URL
+              value: ${PG_TARGET_URL}
+            - name: SPRING_DATASOURCE_USERNAME
+              value: ${PG_TARGET_USERNAME}
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: ${PG_TARGET_PASSWORD}
+            
+            # Kafka Connection - Broker URL is often configured via a dedicated K8s Service
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka-headless-service:9092 # K8s Service name for Kafka
+            - name: CDC_KAFKA_TOPIC
+              value: inventory-cdc-events
+              # If Kafka requires SASL/SSL credentials, those would also be sourced from Key Vault:
+              # - name: SPRING_KAFKA_SASL_PASSWORD 
+              #   value: ${KAFKA_SASL_PASSWORD}
+          
+          # Resources are critical for Horizontal Pod Autoscaling (HPA)
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"
+          
+          # --- HEALTH CHECKS ---
+          # Used by K8s to determine if the application is healthy (Spring Boot Actuator endpoints)
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5

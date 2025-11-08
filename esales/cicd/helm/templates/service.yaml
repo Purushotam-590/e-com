@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: econsume-service
+  labels:
+    app: econsume
+
+spec:
+  selector:
+    app: econsume-component
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8443
+      targetPort: 8080

@@ -1,0 +1,128 @@
+
+name: esales
+namespace: esales-demo
+replicaCount: 1
+
+dnsname: openjdk-demo.local
+dnsttl: "60"
+
+image:
+  registry: esales.azurecr.io
+  repository: consume/esales-demo
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+probes:
+  startupProbe:
+    httpGet:
+      path: /actuator/health/startup
+    initialDelaySeconds: 100
+    periodSeconds: 10
+    failureThreshold: 10
+    successThreshold: 1
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+    periodSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+    timeoutSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+    initialDelaySeconds: 100
+    periodSeconds: 10
+    failureThreshold: 3
+    successThreshold: 1
+    timeoutSeconds: 5
+
+serviceAccount:
+    name: esales-demo-identity
+
+resources:
+  requests:
+    memory: 1024Mi
+    cpu: 1
+  limits:
+    memory: 1024Mi
+    cpu: 2
+
+istio:
+  hostPostFix: ".aks.p01.azdt.com"
+
+virtualService:
+  enabled: true
+  dnsPostFix: "-apps-ecom-demo.com"
+
+workloadIdentity:
+  enabled: true
+  clientID: "esales-demo-identity"
+
+ingressType: "azure-application-gateway"
+
+keyVault:
+  enabled: true
+  credentails:
+    vaultname: "aesales123"
+    tenantId: "83sd0-sdjsd-d1sjs"
+    clientId: "djois-kiyss-uiag9"
+  secretNamePrefix:
+    enabled: false
+    prefixOverride: ""
+  secrets:
+    - name: esales-spring.kafka.consumer.ssl.trust-store-password
+    - key: spring.kafka.consumer.ssl.trust-store-password
+    - name: esales-spring.kafka.consumer.ssl.key-store-password
+    - key: spring.kafka.consumer.ssl.key-store-password
+    - name: esales-spring.elasticsearch.rest.username
+    - key: spring.elasticsearch.rest.username
+    - name: esales-spring.elasticsearch.rest.password
+    - key: spring.elasticsearch.rest.password
+    - name: esales-spring.elasticsearch.rest.ssl.trust-store-password
+    - key: spring.spring.elasticsearch.rest.ssl.trust-store-password
+    - name: esales-spring.elasticsearch.rest.ssl.key-store-password
+    - key: spring.spring.elasticsearch.rest.ssl.key-store-password
+    - name: esales-spring.cloud.azure.credential.client-id
+    - key: spring.cloud.azure.credential.client-id
+    - name: esales-spring.cloud.azure.credential.client-secret
+    - key: spring.cloud.azure.credential.client-secret
+
+env:
+  JAVA_OPTS: "-Xms512m -Xmx1024m"
+  SPRING_PROFILES_ACTIVE: prod, azure-cl
+  application.name: esales
+  application.env: p01
+
+  spring.cloud.vault.session.lifecycle.enabled: true
+
+
+  spring.kafka.bootstrap-servers: esales-consume:9092
+  spring.kafka.properties.security.protocol: SASL_SSL
+  spring.kafka.properties.sasl.mechanism: OAUTHBEARER
+  spring.kafka.properties.sasl.jaas.config: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;
+  spring.kafka.properties.sasl.login.callback.handler.class: com.azure.spring.cloud.kafka.implementation.oauthbearer.KafkaOAuthBearerLoginCallbackHandler;
+
+  spring.cloud.azure.keyvault.uri: https://YOUR_KEY_VAULT_NAME.vault.azure.net/
+  spring.cloud.azure.keyvault.secret.endpoint: https://my-keyvault.vault.azure.net/
+  spring.cloud.azure.credential.client-id: clientId
+  spring.cloud.azure.credential.client-secret: ynmasdcsw-scnswsdc
+  spring.cloud.azure.credential.tenant-id: esales-id
+  spring.cloud.azure.managed-identity.client-id: managedIdentityClientId
+
+
+service:
+  type: ClusterIP
+  protocol: "TCP"
+  portName: "http"
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+gateway:
+  enabled: true
+  create: false
+  name: "istio-ingressgateway"
