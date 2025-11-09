@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: econsume-service
-          image: artifactory.demo.com/econsume/econsume-demo:1.0.0
+          image: artifactory.demoacr.io/econsume/econsume-demo:1.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
